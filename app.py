@@ -3,7 +3,21 @@ import re
 from funcoes import salvar_dados_excel
 import os 
 
-st.title("CRIADOR DIGITAL DE TABELA EXCEL (Fornecedores)")
+import streamlit as st
+
+st.set_page_config(page_title="Cadastro de Fornecedores", page_icon="📋")
+st.title("🚀Fluxo de Credenciamento Digital (Fornecedores)")
+
+st.info("Primeiro, selecione a planilha onde os dados serão adicionados.")
+with st.expander("⚠️ Leia as instruções antes de usar", expanded=False):
+    st.write("""
+    * **Arquivo para uso:** Caso queira repetir o processo com novas informações, anexe o arquivo que já foi alterado a piori.
+    * **Importante:** Se você estiver com este arquivo aberto no seu Excel local, o sistema poderá apresentar erro ao tentar salvar novos dados. 
+    * **Dica:** Mantenha o arquivo fechado durante a operação no site.
+    """)
+arquivo_upload = st.file_uploader("Subir planilha Excel", type=["xlsx"])
+
+st.markdown("---")
 
 tipo_cadastro = st.radio("O fornecedor é de quê?", ["MATERIAL", "SERVIÇO"])
 
@@ -58,11 +72,6 @@ if st.button("Salvar dados na Tabela"):
     if cep and not re.match(r"^\d{2}\.\d{3}\-\d{3}$", cep):
         erros.append("CEP: Insira corretamente (00.000-000)")
     
-    for erro in erros:
-        st.error(erro)
-    for aviso in avisos:
-        st.warning(aviso)
-   
     if len(erros) == 0:
        
         dados = {
@@ -81,9 +90,19 @@ if st.button("Salvar dados na Tabela"):
         else:
             dados["TIPO DE SERVIÇO"] = [servico]
 
-        sucesso = salvar_dados_excel(dados, nome_aba=tipo_cadastro)
+        conteudo_excel = salvar_dados_excel(arquivo_upload, dados, nome_aba=tipo_cadastro)
 
-        if sucesso:
+        if conteudo_excel:
             st.success("Arquivo salvo com sucesso!")
+            st.download_button(
+                        label="📥 Baixar Planilha Atualizada",
+                        data=conteudo_excel,
+                        file_name="Cadastro_Fornecedores_Atualizado.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )    
     else:
-        st.error("Não foi possível salvar, corrija os erros acima.")
+        for erro in erros:
+            st.error(erro)
+        for aviso in avisos:
+            st.warning(aviso)
+   

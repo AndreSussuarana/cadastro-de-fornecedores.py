@@ -1,53 +1,46 @@
-import pandas as pd 
-from pathlib import Path
+import pandas as pd
+from io import BytesIO
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 
-def salvar_dados_excel(dados_dict, nome_aba):
-    caminho_downloads = Path.home() / "Downloads"
-    nome_arquivo = "Cadastro de Fornecedores - Núcleo de Compras.xlsx"
-    caminho_final = caminho_downloads / nome_arquivo
-
-    df_novo = pd.DataFrame(dados_dict)
+def salvar_dados_excel(arquivo_upload, dados_novos, nome_aba):
+    # 1. Carregar o arquivo enviado para a memória
+    # O arquivo_upload vindo do Streamlit já se comporta como um arquivo aberto
+    df_novo = pd.DataFrame(dados_novos)
     
+    # Padronização (Sua lógica de maiúsculas)
     colunas_para_maiusculo = ["NOME DA EMPRESA", "TIPO DE MATERIAL", "TIPO DE SERVIÇO"]
-
     for col in colunas_para_maiusculo:
         if col in df_novo.columns:
             df_novo[col] = df_novo[col].astype(str).str.upper().str.strip()
 
-    if caminho_final.exists():
-        try:
-            df_antigo = pd.read_excel(caminho_final, sheet_name=nome_aba)
-            df_antigo = df_antigo.dropna(how='all')
-            if 'NOME DA EMPRESA' in df_antigo.columns:
-                df_antigo = df_antigo.dropna(subset=['NOME DA EMPRESA'])
-            
-            df_final = pd.concat([df_antigo, df_novo], ignore_index=True)
-        except Exception:
-            df_final = df_novo
+    # 2. Ler o conteúdo atual para concatenar
+    try:
+        # Resetamos o ponteiro do arquivo para garantir que a leitura comece do zero
+        arquivo_upload.seek(0)
+        df_antigo = pd.read_excel(arquivo_upload, sheet_name=nome_aba)
+        df_final = pd.concat([df_antigo, df_novo], ignore_index=True)
+    except Exception:
+        df_final = df_novo
 
-        book = load_workbook(caminho_final)
+    # 3. Preparar o salvamento mantendo a formatação (Sua técnica original)
+    output = BytesIO()
+    arquivo_upload.seek(0) # Volta ao início de novo para o load_workbook
+    book = load_workbook(arquivo_upload)
+    
+    with pd.ExcelWriter(output, engine='openpyxl', mode='a', if_sheet_exists='overlay') as writer:
+        # Aqui está o seu "pulo do gato" preservado:
+        writer._book = book
+        writer._sheets = {ws.title: ws for ws in book.worksheets}
         
-        with pd.ExcelWriter(caminho_final, engine='openpyxl', mode='a', if_sheet_exists='overlay') as writer:
-            # Usamos os atributos internos com underline para burlar a proteção de "no setter"
-            writer._book = book 
-            writer._sheets = {ws.title: ws for ws in book.worksheets}
+        df_final.to_excel(writer, sheet_name=nome_aba, index=False)
+        
+        # Ajuste de largura (Sua lógica original)
+        worksheet = writer._sheets[nome_aba]
+        for i, col in enumerate(df_final.columns):
+            max_len = df_final[col].astype(str).str.len().max()
+            max_len = max(max_len if pd.notna(max_len) else 0, len(str(col))) + 2
+            worksheet.column_dimensions[get_column_letter(i + 1)].width = max_len
             
-            df_final.to_excel(writer, sheet_name=nome_aba, index=False)
-            
-            # Acessamos a aba para ajustar a largura
-            worksheet = writer._sheets[nome_aba]
-            for i, col in enumerate(df_final.columns):
-                max_len = df_final[col].astype(str).str.len().max()
-                max_len = max(max_len, len(str(col))) + 2
-                worksheet.column_dimensions[get_column_letter(i + 1)].width = max_len
-    else:
-        with pd.ExcelWriter(caminho_final, engine='openpyxl') as writer:
-            df_novo.to_excel(writer, sheet_name=nome_aba, index=False)
-            worksheet = writer.sheets[nome_aba]
-            for i, col in enumerate(df_novo.columns):
-                max_len = max(df_novo[col].astype(str).str.len().max(), len(str(col))) + 2
-                worksheet.column_dimensions[get_column_letter(i + 1)].width = max_len
-            
-    return True
+    # Retornamos os bytes do arquivo novo (com a formatação do antigo preservada)
+    return output.getvalue()
