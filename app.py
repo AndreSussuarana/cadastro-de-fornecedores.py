@@ -97,7 +97,7 @@ if st.button("Salvar dados na Tabela"):
             st.download_button(
                         label="📥 Baixar Planilha Atualizada",
                         data=conteudo_excel,
-                        file_name="Cadastro_Fornecedores_Atualizado.xlsx",
+                        file_name="Cadastro de Fornecedores - Núcleo de Compras.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )    
     else:

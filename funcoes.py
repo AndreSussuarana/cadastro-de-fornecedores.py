@@ -4,44 +4,51 @@ from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 
 def salvar_dados_excel(arquivo_upload, dados_novos, nome_aba):
-    # 1. Criar o DataFrame com os novos dados
+    # 1. Preparar os dados novos
     df_novo = pd.DataFrame(dados_novos)
-    
-    # Padronização (Maiúsculas)
     colunas_para_maiusculo = ["NOME DA EMPRESA", "TIPO DE MATERIAL", "TIPO DE SERVIÇO"]
     for col in colunas_para_maiusculo:
         if col in df_novo.columns:
             df_novo[col] = df_novo[col].astype(str).str.upper().str.strip()
 
-    # 2. Ler o arquivo existente e combinar os dados
-    try:
-        arquivo_upload.seek(0)
-        # Lemos o arquivo inteiro para garantir que não perderemos outras abas
-        todas_as_abas = pd.read_excel(arquivo_upload, sheet_name=None)
-        
-        if nome_aba in todas_as_abas:
-            df_antigo = todas_as_abas[nome_aba]
-            df_final = pd.concat([df_antigo, df_novo], ignore_index=True)
-        else:
-            df_final = df_novo
-            todas_as_abas[nome_aba] = df_final
-            
-        todas_as_abas[nome_aba] = df_final # Atualiza a aba específica
-    except Exception:
-        df_final = df_novo
-        todas_as_abas = {nome_aba: df_final}
+    # 2. Carregar o arquivo original com openpyxl para manter os estilos
+    arquivo_upload.seek(0)
+    book = load_workbook(arquivo_upload)
+    
+    # Verifica se a aba existe, se não, cria uma baseada na primeira (ou cria nova)
+    if nome_aba not in book.sheetnames:
+        book.create_sheet(nome_aba)
+    
+    sheet = book[nome_aba]
+    
+    # 3. Descobrir a próxima linha vazia
+    # Se a célula A1 estiver vazia, começamos na 1, senão na próxima disponível
+    proxima_linha = sheet.max_row + 1
+    if sheet.max_row == 1 and sheet['A1'].value is None:
+        proxima_linha = 1
 
-    # 3. Salvar tudo em um novo objeto na memória
+    # 4. Escrever os dados linha por linha (Preserva o estilo do arquivo)
+    # Se for a primeira vez escrevendo (planilha vazia), escreve o cabeçalho
+    if proxima_linha == 1:
+        for c_idx, col_name in enumerate(df_novo.columns, 1):
+            sheet.cell(row=1, column=c_idx, value=col_name)
+        proxima_linha = 2
+
+    # Escrever os valores do novo fornecedor
+    for r_idx, row in df_novo.iterrows():
+        for c_idx, value in enumerate(row, 1):
+            sheet.cell(row=proxima_linha + r_idx, column=c_idx, value=value)
+
+    # 5. Ajuste de largura de colunas (Sua lógica preferida)
+    for i, col in enumerate(df_novo.columns, 1):
+        # Aqui ele tenta medir o tamanho baseado no que já existe na coluna
+        column_letter = get_column_letter(i)
+        current_width = sheet.column_dimensions[column_letter].width
+        new_width = max(len(str(df_novo.iloc[0, i-1])), 15) # Mínimo de 15
+        if new_width > current_width:
+            sheet.column_dimensions[column_letter].width = new_width
+
+    # 6. Salvar para BytesIO
     output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        for aba, df in todas_as_abas.items():
-            df.to_excel(writer, sheet_name=aba, index=False)
-            
-            # Ajuste de largura das colunas
-            worksheet = writer.sheets[aba]
-            for i, col in enumerate(df.columns):
-                max_len = df[col].astype(str).str.len().max()
-                max_len = max(max_len if pd.notna(max_len) else 0, len(str(col))) + 2
-                worksheet.column_dimensions[get_column_letter(i + 1)].width = max_len
-            
+    book.save(output)
     return output.getvalue()
