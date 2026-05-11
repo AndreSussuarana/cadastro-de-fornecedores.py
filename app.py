@@ -74,21 +74,32 @@ if st.button("Salvar dados na Tabela"):
     
     if len(erros) == 0:
        
-        dados = {
-            "NOME DA EMPRESA": [nome_empresa],
-            "CNPJ": [cnpj],
-            "TELEFONE": [telefone],
-            "ENDEREÇO ELETRÔNICO": [email],
-            "CIDADE": [cidade],
-            "CEP": [cep],
-            "OBSERVAÇÕES": [obs]
-        }
-        
-        
+        # Criamos o dicionário JÁ NA ORDEM CORRETA das colunas do Excel
         if tipo_cadastro == "MATERIAL":
-            dados["TIPO DE MATERIAL"] = [material]
+            dados = {
+                "NOME DA EMPRESA": [nome_empresa],
+                "CNPJ": [cnpj],
+                "TIPO DE MATERIAL": [material], # 3ª Coluna
+                "TELEFONE": [telefone],
+                "ENDEREÇO ELETRÔNICO": [email],
+                "CIDADE": [cidade],
+                "CEP": [cep],
+                "OBSERVAÇÕES": [obs]
+            }
         else:
-            dados["TIPO DE SERVIÇO"] = [servico]
+            dados = {
+                "NOME DA EMPRESA": [nome_empresa],
+                "CNPJ": [cnpj],
+                "TIPO DE SERVIÇO": [servico], # 3ª Coluna
+                "TELEFONE": [telefone],
+                "ENDEREÇO ELETRÔNICO": [email],
+                "CIDADE": [cidade],
+                "CEP": [cep],
+                "OBSERVAÇÕES": [obs]
+            }
+
+        # Agora enviamos para a função
+        conteudo_excel = salvar_dados_excel(arquivo_upload, dados, nome_aba=tipo_cadastro)
 
         conteudo_excel = salvar_dados_excel(arquivo_upload, dados, nome_aba=tipo_cadastro)
 
