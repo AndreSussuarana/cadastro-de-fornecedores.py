@@ -1,28 +1,45 @@
 import streamlit as st
 import re
-from funcoes import salvar_dados_excel
+import pandas as pd
+from funcoes import salvar_no_google_sheets, carregar_dados_google
 import os 
-
 import streamlit as st
+
+
+LINK_PLANILHA = "https://docs.google.com/spreadsheets/d/1OTbG6-9Mgobeep-F_bwn-X5rDuEckVsjB20VCu6D6kg/edit?pli=1&gid=1703149077#gid=1703149077"
 
 st.set_page_config(page_title="Cadastro de Fornecedores", page_icon="📋")
 st.title("🚀Fluxo de Credenciamento Digital (Fornecedores)")
 
-st.info("Primeiro, selecione a planilha onde os dados serão adicionados.")
+df_mat = carregar_dados_google("MATERIAL")
+df_serv = carregar_dados_google("SERVIÇO")
+
+st.info("A planilha mestre está sincronizada em tempo real com o Google Sheets.")
 with st.expander("⚠️ Leia as instruções antes de usar", expanded=False):
     st.write("""
-    * **Arquivo para uso:** Caso queira repetir o processo com novas informações, anexe o arquivo que já foi alterado a piori.
     * **Importante:** Se você estiver com este arquivo aberto no seu Excel local, o sistema poderá apresentar erro ao tentar salvar novos dados. 
     * **Dica:** Mantenha o arquivo fechado durante a operação no site.
     """)
-arquivo_upload = st.file_uploader("Subir planilha Excel", type=["xlsx"])
 
 st.markdown("---")
 
 tipo_cadastro = st.radio("O fornecedor é de quê?", ["MATERIAL", "SERVIÇO"])
 
-material = ""
-servico = ""
+if tipo_cadastro == "MATERIAL":
+    if df_mat is not None:
+        with st.expander("🔍 Visualizar Fornecedores de MATERIAL já cadastrados", expanded=False):
+            st.dataframe(df_mat)
+    else:
+        st.warning("Base de materiais ainda não possui dados ou arquivo não encontrado.")
+else:
+    if df_serv is not None:
+        with st.expander("🔍 Visualizar Fornecedores de SERVIÇO já cadastrados", expanded=False):
+            st.dataframe(df_serv)
+    else:
+        st.warning("Base de serviços ainda não possui dados ou arquivo não encontrado.")
+
+st.markdown("---")
+st.subheader("📝 Formulário de Novo Cadastro")
 
 nome_empresa = st.text_input("Nome da Empresa", key="NOME DA EMPRESA").upper().strip()
 cnpj = st.text_input("CNPJ", placeholder="00.000.000/0000-00", key="CNPJ")
@@ -98,19 +115,13 @@ if st.button("Salvar dados na Tabela"):
                 "OBSERVAÇÕES": [obs]
             }
 
-        # Agora enviamos para a função
-        conteudo_excel = salvar_dados_excel(arquivo_upload, dados, nome_aba=tipo_cadastro)
+        with st.spinner("Salvando dados na nuvem..."):
+            sucesso = salvar_no_google_sheets(dados, nome_aba=tipo_cadastro)
 
-        conteudo_excel = salvar_dados_excel(arquivo_upload, dados, nome_aba=tipo_cadastro)
-
-        if conteudo_excel:
-            st.success("Arquivo salvo com sucesso!")
-            st.download_button(
-                        label="📥 Baixar Planilha Atualizada",
-                        data=conteudo_excel,
-                        file_name="Cadastro de Fornecedores - Núcleo de Compras.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )    
+        if sucesso:
+            st.success("✅ Dados salvos com sucesso no Google Sheets!")
+            st.balloons()
+            st.markdown(f"### [🔗 Clique aqui para abrir a planilha]({LINK_PLANILHA})")
     else:
         for erro in erros:
             st.error(erro)

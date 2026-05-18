@@ -1,0 +1,16 @@
+# Ambiente Virtual
+.venv/
+venv/
+env/
+
+# Cache do Python
+__pycache__/
+*.py[cod]
+
+# SEGURANÇA: Arquivos de chaves e dados
+*.json
+*.xlsx
+*.csv
+
+# Streamlit (configurações locais)
+.streamlit/

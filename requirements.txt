@@ -2,3 +2,5 @@ streamlit
 pandas
 openpyxl
 pathlib
+gspread
+oauth2client
