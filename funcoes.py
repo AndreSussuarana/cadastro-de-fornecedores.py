@@ -25,8 +25,10 @@ def salvar_no_google_sheets(dados_novos, nome_aba):
     sheet = planilha.worksheet(nome_aba)
 
     df_novo = pd.DataFrame(dados_novos)
-    for col in df_novo.columns:
-        df_novo[col] = df_novo[col].astype(str).str.upper().str.strip()
+    colunas_ajuste = ["NOME DA EMPRESA", "", "TIPO DE MATERIAL", "TIPO DE SERVIÇO"]
+    for col in colunas_ajuste.columns:
+        if col in df_novo.columns:
+            df_novo[col] = df_novo[col].astype(str).str.upper().str.strip()
     
     novas_linhas = df_novo.values.tolist()
     sheet.append_rows(novas_linhas)
